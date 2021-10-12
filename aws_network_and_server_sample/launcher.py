@@ -29,39 +29,36 @@ class VpcLauncher():
             return
 
         self._client.delete_vpc(VpcId=self.id)
+        self._id = None
         print(f"delete {self._conf['name']}")
 
 
 class SubnetLauncher():
-    def __init__(self, conf, attach_vpc_id):
+    def __init__(self, conf):
+        self._conf = conf
 
-        self._ids['subnets'] = dict()
-        for subnet_conf in self._conf['subnets']:
-            private_subnet = self._client.create_subnet(
-                CidrBlock=subnet_conf['CidrBlock'],
-                VpcId=self._ids[vpc_conf['name']],
-                TagSpecifications=[
-                    {
-                        'ResourceType': 'subnet',
-                        'Tags': [
-                            {
-                                'Key': 'Name',
-                                'Value': subnet_conf['name']}]}])
+        self._client = boto3.client('ec2')
+        self.id = None
 
-            self._ids['subnets'][subnet_conf['name']] = private_subnet['Subnet']['SubnetId']
+    def run(self, attach_vpc_id):
+        res = self._client.create_subnet(
+            AvailabilityZone=self._conf['AvailabilityZone'],
+            CidrBlock=self._conf['CidrBlock'],
+            VpcId=attach_vpc_id,
+            TagSpecifications=[
+                {
+                    'ResourceType': 'subnet',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': self._conf['name']}]}])
 
-            print(f"create {subnet_conf['name']}")
-
-
-        pass
+        self.id = res['Subnet']['SubnetId']
+        print(f"create {self._conf['name']}")
 
     def kill(self):
-        print('kill')
+        if self.id is None:
+            return
 
-
-
-        for subnet_id in self._ids['subnets'].keys():
-            pass
-
-
-        pass
+        self._client.delete_subnet(SubnetId=self.id)
+        print(f"delete {self._conf['name']}")

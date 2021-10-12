@@ -7,11 +7,13 @@ vpc:
 
 
 subnet:
-  - name: 'public_vpc'
+  - name: 'public_subnet'
     CidrBlock: '10.0.1.0/24'
+    AvailabilityZone: 'ap-northeast-1a'
 
-  - name: 'private_vpc'
-    ipv4: '10.0.2.0/24'
+  - name: 'private_subnet'
+    CidrBlock: '10.0.2.0/24'
+    AvailabilityZone: 'ap-northeast-1a'
 
 internet_gateway:
   - name: 'gateway'
