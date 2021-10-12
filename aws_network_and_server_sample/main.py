@@ -3,25 +3,25 @@
 import click
 import yaml
 
-from launcher import Launcher
+from launcher import VpcLauncher
 
 
 @click.command()
-@click.argument('vpc_config_file', type=str)
-def main(vpc_config_file):
-    f = open(vpc_config_file)
+@click.argument('config_file', type=str)
+def main(config_file):
+    f = open(config_file)
     config = yaml.safe_load(f)
 
-    l = Launcher(config)
+    vpc_array = [VpcLauncher(c) for c in config['vpc']]
 
     try:
-        l.run()
+        [vpc.run() for vpc in vpc_array]
     except Exception as e:
         print(f'Error: {e}')
 
     input('Enter to terminate instances')
 
-    l.kill()
+    [vpc.kill() for vpc in reversed(vpc_array)]
 
 
 if __name__ == '__main__':
