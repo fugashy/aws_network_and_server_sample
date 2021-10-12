@@ -62,3 +62,31 @@ class SubnetLauncher():
 
         self._client.delete_subnet(SubnetId=self.id)
         print(f"delete {self._conf['name']}")
+
+
+class InternetGateWayLauncher():
+    def __init__(self, conf):
+        self._conf = conf
+
+        self._client = boto3.client('ec2')
+        self.id = None
+        self._attach_vpc_id = None
+
+    def run(self, attach_vpc_id):
+        res = self._client.create_internet_gateway()
+        self.id = res['InternetGateway']['InternetGatewayId']
+
+        self._client.attach_internet_gateway(
+            InternetGatewayId=self.id, VpcId=attach_vpc_id)
+        self._attach_vpc_id = attach_vpc_id
+        print(f"create {self._conf['name']}")
+
+    def kill(self):
+        if self.id is None or self._attach_vpc_id is None:
+            return
+
+        self._client.detach_internet_gateway(
+            InternetGatewayId=self.id, VpcId=self._attach_vpc_id)
+        self._client.delete_internet_gateway(
+            InternetGatewayId=self.id)
+        print(f"delete {self._conf['name']}")

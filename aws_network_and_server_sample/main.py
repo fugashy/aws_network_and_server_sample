@@ -4,6 +4,7 @@ import click
 import yaml
 
 from launcher import (
+    InternetGateWayLauncher,
     SubnetLauncher,
     VpcLauncher,
 )
@@ -17,16 +18,19 @@ def main(config_file):
 
     vpc_array = [VpcLauncher(c) for c in config['vpc']]
     subnet_array = [SubnetLauncher(c) for c in config['subnet']]
+    igw_array = [InternetGateWayLauncher(c) for c in config['internet_gateway']]
 
     try:
         [vpc.run() for vpc in vpc_array]
         vpc_id = vpc_array[0].id
         [subnet.run(vpc_id) for subnet in subnet_array]
+        [igw.run(vpc_id) for igw in igw_array]
     except Exception as e:
         print(f'Error: {e}')
 
     input('Enter to terminate instances')
 
+    [igw.kill() for igw in reversed(igw_array)]
     [subnet.kill() for subnet in reversed(subnet_array)]
     [vpc.kill() for vpc in reversed(vpc_array)]
 
