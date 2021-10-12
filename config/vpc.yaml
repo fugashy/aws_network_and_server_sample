@@ -1,0 +1,66 @@
+name: 'vpc_region'
+ipv4: '10.0.0.0'
+mask: 16
+region: 'ap-nottheast-1'
+name_dns: true
+
+
+subnets:
+  - name: 'public_vpc'
+    ipv4: '10.0.1.0'
+    mask: 24
+
+  - name: 'private_vpc'
+    ipv4: '10.0.2.0'
+    mask: 24
+
+internet_gateway:
+  - name: 'gateway'
+
+route_table:
+  - name: 'public_rt'
+    attach: 'public_vpc'
+    routes:
+      - send_to: '0.0.0.0/0'
+        target: 'gateway'
+
+sequrity_group:
+  - name: 'public_sg'
+    inbound:
+      - type: 'ssh'
+        protocol: 'tcp'
+        port: 22
+        source: '0.0.0.0/0'
+      - type: 'http'
+        protocol: 'tcp'
+        port: 80
+        source: '0.0.0.0/0'
+      - type: 'costomized tcp'
+        protocol: 'tcp'
+        port: 8080
+        source: '0.0.0.0/0'
+      - type: 'All ICMP-IPv4'
+        protocol: 'icmp'
+        port: '0 - 65535'
+        source: '::/0'
+  - name: 'private_sg'
+    inbound:
+      - type: 'ssh'
+        protocol: 'tcp'
+        port: 22
+        source: '0.0.0.0/0'
+      - type: 'MYSQL/Aurora'
+        protocol: 'tcp'
+        port: 3306
+        source: '0.0.0.0/0, ::/0'
+      - type: 'All ICMP-IPv4'
+        protocol: 'icmp'
+        port: '0 - 65535'
+        source: '::/0'
+
+nat:
+  - name: 'public_nat'
+  - attach: 'public_vpc'
+
+main_route_table:
+  - attach: 'public_nat'
