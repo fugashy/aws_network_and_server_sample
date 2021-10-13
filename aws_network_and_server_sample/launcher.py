@@ -19,9 +19,13 @@ class VpcLauncher():
                         {
                             'Key': 'Name',
                             'Value': self._conf['name']}]}])
-
         # keep id for termination
         self.id = res['Vpc']['VpcId']
+
+        self._client.modify_vpc_attribute(
+            VpcId=self.id,
+            EnableDnsHostnames={'Value': self._conf['EnableDnsHostnames']})
+
         print(f"create {self._conf['name']}")
 
     def kill(self):
