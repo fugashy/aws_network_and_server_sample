@@ -19,10 +19,9 @@ internet_gateway:
 
 route_table:
   - name: 'public_rt'
-    attach: 'public_vpc'
-    routes:
-      - send_to: '0.0.0.0/0'
-        target: 'gateway'
+
+route:
+  - DestinationCidrBlock: '0.0.0.0/0'
 
 sequrity_group:
   - name: 'public_sg'
