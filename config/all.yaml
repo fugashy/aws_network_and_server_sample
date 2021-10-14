@@ -14,6 +14,12 @@ subnet:
     CidrBlock: '10.0.2.0/24'
     AvailabilityZone: 'ap-northeast-1a'
 
+# コストが掛かるので後回し
+nat:
+  - name: 'public_nat'
+  - attach: 'public_vpc'
+
+
 internet_gateway:
   - name: 'gateway'
 
@@ -23,43 +29,51 @@ route_table:
 route:
   - DestinationCidrBlock: '0.0.0.0/0'
 
-sequrity_group:
-  - name: 'public_sg'
-    inbound:
-      - type: 'ssh'
-        protocol: 'tcp'
-        port: 22
-        source: '0.0.0.0/0'
+security_group:
+  - GroupName: 'web_server_sg'
+    Description: 'A security group for public VPC'
+    IpPermissions:
+      # for ssh
+      - IpProtocol: 'tcp'
+        FromPort: 22
+        ToPort: 22
+        CidrIp: '0.0.0.0/0'
+      # for web server
       - type: 'http'
-        protocol: 'tcp'
-        port: 80
-        source: '0.0.0.0/0'
+        IpProtocol: 'tcp'
+        FromPort: 80
+        ToPort: 80
+        CidrIp: '0.0.0.0/0'
       - type: 'costomized tcp'
-        protocol: 'tcp'
-        port: 8080
-        source: '0.0.0.0/0'
-      - type: 'All ICMP-IPv4'
-        protocol: 'icmp'
-        port: '0 - 65535'
-        source: '::/0'
-  - name: 'private_sg'
-    inbound:
-      - type: 'ssh'
-        protocol: 'tcp'
-        port: 22
-        source: '0.0.0.0/0'
-      - type: 'MYSQL/Aurora'
-        protocol: 'tcp'
-        port: 3306
-        source: '0.0.0.0/0, ::/0'
-      - type: 'All ICMP-IPv4'
-        protocol: 'icmp'
-        port: '0 - 65535'
-        source: '::/0'
-
-nat:
-  - name: 'public_nat'
-  - attach: 'public_vpc'
+        IpProtocol: 'tcp'
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: '0.0.0.0/0'
+      # for ping
+      - IpProtocol: 'icmp'
+        FromPort: -1
+        ToPort: -1
+        CidrIp: '0.0.0.0/0'
+        CidrIpv6: '::/0'
+  - GroupName: 'db_sg'
+    Description: 'A security group for private VPC'
+    IpPermissions:
+      - IpProtocol: 'tcp'
+        FromPort: 22
+        ToPort: 22
+        CidrIp: '0.0.0.0/0'
+      # for DB
+      - IpProtocol: 'tcp'
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: '0.0.0.0/0'
+        CidrIpv6: '::/0'
+      # for ping
+      - IpProtocol: 'icmp'
+        FromPort: -1
+        ToPort: -1
+        CidrIp: '0.0.0.0/0'
+        CidrIpv6: '::/0'
 
 main_route_table:
   - attach: 'public_nat'

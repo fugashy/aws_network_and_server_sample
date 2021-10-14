@@ -7,6 +7,7 @@ from launcher import (
     InternetGateWayLauncher,
     RouteLauncher,
     RouteTableLauncher,
+    SecurityGroupLauncher,
     SubnetLauncher,
     VpcLauncher,
 )
@@ -23,6 +24,7 @@ def main(config_file):
     igw_array = [InternetGateWayLauncher(c) for c in config['internet_gateway']]
     rt_array = [RouteTableLauncher(c) for c in config['route_table']]
     route_array = [RouteLauncher(c) for c in config['route']]
+    sg_array = [SecurityGroupLauncher(c) for c in config['security_group']]
 
     try:
         # TODO(fugashy) この辺のデータ受け渡し方法は微妙だが，
@@ -31,6 +33,7 @@ def main(config_file):
         # なのでしばらくこのまま
         [vpc.run() for vpc in vpc_array]
         vpc_id = vpc_array[0].id
+        print(f'vpc id: {vpc_id}')
         [subnet.run(vpc_id) for subnet in subnet_array]
         # publicな方はルートテーブルを設定するのでID確保
         public_subnet_id = subnet_array[0].id
@@ -40,11 +43,13 @@ def main(config_file):
         [rt.run(vpc_id, attach_subnet_id=public_subnet_id) for rt in rt_array]
         rt_id = rt_array[0].id
         [route.run(rt_id, attach_igw_id=igw_id) for route in route_array]
+        [sg.run(vpc_id) for sg in sg_array]
     except Exception as e:
         print(f'Error: {e}')
 
     input('Enter to terminate instances')
 
+    [sg.kill() for sg in reversed(sg_array)]
     [route.kill() for route in reversed(route_array)]
     [rt.kill() for rt in reversed(rt_array)]
     [igw.kill() for igw in reversed(igw_array)]

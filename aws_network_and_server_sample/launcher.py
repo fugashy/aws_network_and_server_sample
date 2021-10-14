@@ -159,3 +159,47 @@ class RouteLauncher():
         self._client.delete_route(
             DestinationCidrBlock=self._conf['DestinationCidrBlock'],
             RouteTableId=self._rt_id)
+
+
+class SecurityGroupLauncher():
+    def __init__(self, conf):
+        self._conf = conf
+
+        self._client = boto3.client('ec2')
+        self.id = None
+
+    def run(self, vpc_id):
+        res = self._client.create_security_group(
+            Description=self._conf['Description'],
+            GroupName=self._conf['GroupName'],
+            VpcId=vpc_id,
+            TagSpecifications=[
+                {
+                    'ResourceType': 'security-group',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': self._conf['GroupName']}]}])
+        self.id = res['GroupId']
+        print(f"create {self._conf['GroupName']}")
+
+        self._client.authorize_security_group_ingress(
+            GroupId=self.id,
+            IpPermissions=[
+                {
+                    'FromPort': pconf['FromPort'],
+                    'IpProtocol': pconf['IpProtocol'],
+                    'IpRanges': [{'CidrIp': pconf['CidrIp']}],
+                    'Ipv6Ranges': [{'CidrIpv6': pconf['CidrIpv6']}] if 'CidrIpv6' in pconf else [],
+                    'ToPort': pconf['ToPort']
+                }
+                for pconf in self._conf['IpPermissions']
+                ])
+
+    def kill(self):
+        if self.id is None:
+            return
+
+        self._client.delete_security_group(
+            GroupId=self.id)
+        print(f"delete {self._conf['GroupName']}")
