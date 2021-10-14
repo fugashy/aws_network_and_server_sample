@@ -7,6 +7,7 @@ from generator import (
     KeyGenerator,
 )
 from launcher import (
+    ElasticComputeCloudLauncher,
     InternetGateWayLauncher,
     RouteLauncher,
     RouteTableLauncher,
@@ -30,6 +31,7 @@ def main(config_file):
     route_array = [RouteLauncher(c) for c in config['route']]
     sg_array = [SecurityGroupLauncher(c) for c in config['security_group']]
     key_gen_array = [KeyGenerator(c) for c in config['key']]
+    ec2_array = [ElasticComputeCloudLauncher(c) for c in config['elastic_compute_cloud']]
 
     try:
         # TODO(fugashy) この辺のデータ受け渡し方法は微妙だが，
@@ -38,7 +40,6 @@ def main(config_file):
         # なのでしばらくこのまま
         [vpc.run() for vpc in vpc_array]
         vpc_id = vpc_array[0].id
-        print(f'vpc id: {vpc_id}')
         [subnet.run(vpc_id) for subnet in subnet_array]
         # publicな方はルートテーブルを設定するのでID確保
         public_subnet_id = subnet_array[0].id
@@ -49,13 +50,16 @@ def main(config_file):
         rt_id = rt_array[0].id
         [route.run(rt_id, attach_igw_id=igw_id) for route in route_array]
         [sg.run(vpc_id) for sg in sg_array]
+        web_server_sg_id = sg_array[0].id
         key_path_array = [key_gen.gen() for key_gen in key_gen_array]
+        ec2_array[0].run(config['key'][0]['key_name'], public_subnet_id, web_server_sg_id)
     except Exception as e:
         print(f'Error: {e}')
 
     input('Enter to terminate instances')
 
-    [key_gen.delete() for key_gen in key_gen_array]
+    [ec2.kill() for ec2 in reversed(ec2_array)]
+    [key_gen.delete() for key_gen in reversed(key_gen_array)]
     [sg.kill() for sg in reversed(sg_array)]
     [route.kill() for route in reversed(route_array)]
     [rt.kill() for rt in reversed(rt_array)]

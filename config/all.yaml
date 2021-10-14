@@ -72,3 +72,14 @@ security_group:
 key:
   - key_name: 'web_server_ec2_key'
     save_dir_path: '/tmp'
+
+elastic_compute_cloud:
+  - ImageId: 'ami-08847abae18baa040'
+    MinCount: 1
+    MaxCount: 1
+    InstanceType: 't2.micro'
+    Name: 'web_server_ec2'
+    NetworkInterfaces:
+      - AssociatePublicIpAddress: true
+        DeleteOnTermination: true
+        DeviceIndex: 0

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import boto3
+import time
 
 
 class VpcLauncher():
@@ -190,7 +191,9 @@ class SecurityGroupLauncher():
                     'FromPort': pconf['FromPort'],
                     'IpProtocol': pconf['IpProtocol'],
                     'IpRanges': [{'CidrIp': pconf['CidrIp']}],
-                    'Ipv6Ranges': [{'CidrIpv6': pconf['CidrIpv6']}] if 'CidrIpv6' in pconf else [],
+                    'Ipv6Ranges': [{
+                        'CidrIpv6': pconf['CidrIpv6']}]
+                    if 'CidrIpv6' in pconf else [],
                     'ToPort': pconf['ToPort']
                 }
                 for pconf in self._conf['IpPermissions']
@@ -203,3 +206,58 @@ class SecurityGroupLauncher():
         self._client.delete_security_group(
             GroupId=self.id)
         print(f"delete {self._conf['GroupName']}")
+
+
+class ElasticComputeCloudLauncher():
+    def __init__(self, conf: dict):
+        self._conf = conf
+
+        self._client = boto3.resource('ec2')
+        self.id = None
+        self.ip = None
+
+        self._instance = None
+
+    def run(self, key_name, subnet_id, sg_id):
+        self._instance = self._client.create_instances(
+            ImageId=self._conf['ImageId'],
+            MinCount=self._conf['MinCount'],
+            MaxCount=self._conf['MaxCount'],
+            InstanceType=self._conf['InstanceType'],
+            KeyName=key_name,
+#           SecurityGroupIds=[sg_id],
+#           SubnetId=subnet_id,
+            NetworkInterfaces=[
+                {
+                    'AssociatePublicIpAddress': net_conf['AssociatePublicIpAddress'],
+                    'DeleteOnTermination': net_conf['DeleteOnTermination'],
+                    'DeviceIndex': net_conf['DeviceIndex'],
+                    'Groups': [sg_id],
+                    'SubnetId': subnet_id,
+                }
+                for net_conf in self._conf['NetworkInterfaces']],
+            TagSpecifications=[
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': self._conf['Name']}]}])[0]
+
+        self.id = self._instance.instance_id
+        print(f'wait for ec2 running: {self.id}')
+        self._instance.wait_until_running()
+        self.ip = self._client.Instance(self.id).public_ip_address
+        print(f"create {self._conf['Name']} ip: {self.ip}")
+
+    def kill(self):
+        if self.id is None and self.ip is None and self._instance is None:
+            return
+
+        c = boto3.client('ec2')
+        c.terminate_instances(InstanceIds=[self.id])
+        print(f"wait for ec2 terminated: {self.id}")
+        while self._instance.state['Name'] != 'terminated':
+            time.sleep(1.0)
+            self._instance.load()
+        print(f"delete {self._conf['Name']} ip: {self.ip}")
