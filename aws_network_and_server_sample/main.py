@@ -3,6 +3,9 @@
 import click
 import yaml
 
+from generator import (
+    KeyGenerator,
+)
 from launcher import (
     InternetGateWayLauncher,
     RouteLauncher,
@@ -19,12 +22,14 @@ def main(config_file):
     f = open(config_file)
     config = yaml.safe_load(f)
 
+
     vpc_array = [VpcLauncher(c) for c in config['vpc']]
     subnet_array = [SubnetLauncher(c) for c in config['subnet']]
     igw_array = [InternetGateWayLauncher(c) for c in config['internet_gateway']]
     rt_array = [RouteTableLauncher(c) for c in config['route_table']]
     route_array = [RouteLauncher(c) for c in config['route']]
     sg_array = [SecurityGroupLauncher(c) for c in config['security_group']]
+    key_gen_array = [KeyGenerator(c) for c in config['key']]
 
     try:
         # TODO(fugashy) この辺のデータ受け渡し方法は微妙だが，
@@ -44,11 +49,13 @@ def main(config_file):
         rt_id = rt_array[0].id
         [route.run(rt_id, attach_igw_id=igw_id) for route in route_array]
         [sg.run(vpc_id) for sg in sg_array]
+        key_path_array = [key_gen.gen() for key_gen in key_gen_array]
     except Exception as e:
         print(f'Error: {e}')
 
     input('Enter to terminate instances')
 
+    [key_gen.delete() for key_gen in key_gen_array]
     [sg.kill() for sg in reversed(sg_array)]
     [route.kill() for route in reversed(route_array)]
     [rt.kill() for rt in reversed(rt_array)]

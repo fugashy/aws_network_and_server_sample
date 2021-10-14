@@ -14,12 +14,6 @@ subnet:
     CidrBlock: '10.0.2.0/24'
     AvailabilityZone: 'ap-northeast-1a'
 
-# コストが掛かるので後回し
-nat:
-  - name: 'public_nat'
-  - attach: 'public_vpc'
-
-
 internet_gateway:
   - name: 'gateway'
 
@@ -75,5 +69,6 @@ security_group:
         CidrIp: '0.0.0.0/0'
         CidrIpv6: '::/0'
 
-main_route_table:
-  - attach: 'public_nat'
+key:
+  - key_name: 'web_server_ec2_key'
+    save_dir_path: '/tmp'
