@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+
 import boto3
 
 
@@ -26,10 +28,14 @@ class KeyGenerator():
         meta_data = self.info['KeyMaterial']
         key_file_name = f"{self._conf['name']}.pem"
 
-
         key_path = f"{self._conf['save_dir_path']}{key_file_name}"
 
-        with open(key_path, mode='w') as f:
+        try:
+            os.remove(key_path)
+        except:
+            pass
+        os.umask(0)
+        with open(key_path, mode='w', opener=lambda path, flags: os.open(path, flags, 0o400)) as f:
             f.write(meta_data)
 
         return key_path
