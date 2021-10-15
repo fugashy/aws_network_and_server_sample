@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-import boto3
 import time
+
+import boto3
 
 
 class VpcLauncher():
-    def __init__(self, conf):
+    def __init__(self, client, conf: dict):
         self._conf = conf
-
-        self._client = boto3.client('ec2')
-        self.id = None
+        self._client = client
+        self.info = None
 
     def run(self):
-        res = self._client.create_vpc(
+        self.info = self._client.create_vpc(
             CidrBlock=self._conf['CidrBlock'],
             TagSpecifications=[
                 {
@@ -19,161 +19,154 @@ class VpcLauncher():
                     'Tags': [
                         {
                             'Key': 'Name',
-                            'Value': self._conf['name']}]}])
-        # keep id for termination
-        self.id = res['Vpc']['VpcId']
+                            'Value': self._conf['Name']}]}])
 
         self._client.modify_vpc_attribute(
-            VpcId=self.id,
+            VpcId=self.info['Vpc']['VpcId'],
             EnableDnsHostnames={'Value': self._conf['EnableDnsHostnames']})
 
-        print(f"create {self._conf['name']}")
+        print(f"create {self._conf['Name']}: {self.info['Vpc']['VpcId']}")
 
     def kill(self):
-        if self.id is None:
+        if self.info is None:
             return
 
-        self._client.delete_vpc(VpcId=self.id)
-        self._id = None
-        print(f"delete {self._conf['name']}")
+        self._client.delete_vpc(VpcId=self.info['Vpc']['VpcId'])
+        print(f"delete {self._conf['Name']}: {self.info['Vpc']['VpcId']}")
+        self.info = None
 
 
 class SubnetLauncher():
-    def __init__(self, conf):
+    def __init__(
+            self,
+            client,
+            conf: dict,
+            vpc_by_name: dict):
+        self._client = client
         self._conf = conf
+        self._vpc_by_name = vpc_by_name
+        self.info = None
 
-        self._client = boto3.client('ec2')
-        self.id = None
-
-    def run(self, attach_vpc_id):
-        res = self._client.create_subnet(
+    def run(self):
+        self.info = self._client.create_subnet(
             AvailabilityZone=self._conf['AvailabilityZone'],
             CidrBlock=self._conf['CidrBlock'],
-            VpcId=attach_vpc_id,
+            VpcId=self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId'],
             TagSpecifications=[
                 {
                     'ResourceType': 'subnet',
                     'Tags': [
                         {
                             'Key': 'Name',
-                            'Value': self._conf['name']}]}])
+                            'Value': self._conf['Name']}]}])
 
-        self.id = res['Subnet']['SubnetId']
-        print(f"create {self._conf['name']}")
+        print(f"create {self._conf['Name']}: {self.info['Subnet']['SubnetId']}")
 
     def kill(self):
-        if self.id is None:
+        if self.info is None:
             return
 
-        self._client.delete_subnet(SubnetId=self.id)
-        print(f"delete {self._conf['name']}")
+        self._client.delete_subnet(SubnetId=self.info['Subnet']['SubnetId'])
+        print(f"delete {self._conf['Name']}: {self.info['Subnet']['SubnetId']}")
 
 
 class InternetGateWayLauncher():
-    def __init__(self, conf):
+    def __init__(self, client, conf: dict, vpc_by_name):
+        self._client = client
         self._conf = conf
+        self._vpc_by_name = vpc_by_name
+        self.info = None
 
-        self._client = boto3.client('ec2')
-        self.id = None
-        self._attach_vpc_id = None
-
-    def run(self, attach_vpc_id):
-        res = self._client.create_internet_gateway()
-        self.id = res['InternetGateway']['InternetGatewayId']
+    def run(self):
+        self.info = self._client.create_internet_gateway()
 
         self._client.attach_internet_gateway(
-            InternetGatewayId=self.id, VpcId=attach_vpc_id)
-        self._attach_vpc_id = attach_vpc_id
-        print(f"create {self._conf['name']}")
+            InternetGatewayId=self.info['InternetGateway']['InternetGatewayId'],
+            VpcId=self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId'])
+        print(f"create {self._conf['Name']}: {self.info['InternetGateway']['InternetGatewayId']}")
 
     def kill(self):
-        if self.id is None or self._attach_vpc_id is None:
+        if self.info is None:
             return
 
         self._client.detach_internet_gateway(
-            InternetGatewayId=self.id, VpcId=self._attach_vpc_id)
+            InternetGatewayId=self.info['InternetGateway']['InternetGatewayId'],
+            VpcId=self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId'])
         self._client.delete_internet_gateway(
-            InternetGatewayId=self.id)
-        print(f"delete {self._conf['name']}")
+            InternetGatewayId=self.info['InternetGateway']['InternetGatewayId'])
+        print(f"delete {self._conf['Name']}: {self.info['InternetGateway']['InternetGatewayId']}")
 
 
 class RouteTableLauncher():
-    def __init__(self, conf):
+    def __init__(
+            self,
+            client,
+            conf: dict,
+            vpc_by_name: dict,
+            subnet_by_name=None,
+            igw_by_name=None):
+        self._client = client
         self._conf = conf
+        self._vpc_by_name = vpc_by_name
+        self._subnet_by_name = subnet_by_name
+        self._igw_by_name = igw_by_name
+        self.info = None
+        self._association_info = None
+        self._route_info = list()
 
-        self._client = boto3.client('ec2')
-        self.id = None
-        self._association_id = None
-
-    def run(self, attach_vpc_id, *, attach_subnet_id=None):
+    def run(self):
         # VPCにルータを置くイメージ
-        res = self._client.create_route_table(
-            VpcId=attach_vpc_id,
+        self.info = self._client.create_route_table(
+            VpcId=self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId'],
             TagSpecifications=[
                 {
                     'ResourceType': 'route-table',
                     'Tags': [
                         {
                             'Key': 'Name',
-                            'Value': self._conf['name']}]}])
-        self.id = res['RouteTable']['RouteTableId']
+                            'Value': self._conf['Name']}]}])
 
-        if attach_subnet_id is not None:
-            res = self._client.associate_route_table(
-                RouteTableId=self.id,
-                SubnetId=attach_subnet_id)
-            self._association_id = res['AssociationId']
-        print(f"create {self._conf['name']}")
+        if 'subnet_name' in self._conf and self._subnet_by_name is not None:
+            self._association_info = self._client.associate_route_table(
+                RouteTableId=self.info['RouteTable']['RouteTableId'],
+                SubnetId=self._subnet_by_name[self._conf['subnet_name']].info['Subnet']['SubnetId'])
+        print(f"create {self._conf['Name']}: {self.info['RouteTable']['RouteTableId']}")
+
+        for c in self._conf['routes']:
+            self._route_info.append(self._client.create_route(
+                DestinationCidrBlock=c['DestinationCidrBlock'],
+                GatewayId=self._igw_by_name[c['GatewayId']].info['InternetGateway']['InternetGatewayId'],
+                RouteTableId=self.info['RouteTable']['RouteTableId']))
 
     def kill(self):
-        if self.id is None:
-            return
+        if len(self._route_info) != 0:
+            for c in self._conf['routes']:
+                self._client.delete_route(
+                    DestinationCidrBlock=c['DestinationCidrBlock'],
+                    RouteTableId=self.info['RouteTable']['RouteTableId'])
 
-        if self._association_id is not None:
+        if self._association_info is not None:
             self._client.disassociate_route_table(
-                AssociationId=self._association_id)
+                AssociationId=self._association_info['AssociationId'])
 
-        self._client.delete_route_table(RouteTableId=self.id)
-        print(f"delete {self._conf['name']}")
-
-
-class RouteLauncher():
-    def __init__(self, conf):
-        self._conf = conf
-
-        self._client = boto3.client('ec2')
-        self.id = None
-        self._rt_id = None
-
-    def run(self, attach_rt_id, *, attach_igw_id=None):
-        # igwへのトラフィックを設定し，テーブルに登録
-        self._client.create_route(
-            DestinationCidrBlock=self._conf['DestinationCidrBlock'],
-            GatewayId=attach_igw_id,
-            RouteTableId=attach_rt_id)
-        self._rt_id = attach_rt_id
-
-    def kill(self):
-        if self.id is None:
-            return
-
-        self._client.delete_route(
-            DestinationCidrBlock=self._conf['DestinationCidrBlock'],
-            RouteTableId=self._rt_id)
+        if self.info is not None:
+            self._client.delete_route_table(
+                RouteTableId=self.info['RouteTable']['RouteTableId'])
+        print(f"delete {self._conf['Name']}: {self.info['RouteTable']['RouteTableId']}")
 
 
 class SecurityGroupLauncher():
-    def __init__(self, conf):
+    def __init__(self, client, conf, vpc_by_name):
+        self._client = client
         self._conf = conf
+        self._vpc_by_name = vpc_by_name
+        self.info = None
 
-        self._client = boto3.client('ec2')
-        self.id = None
-
-    def run(self, vpc_id):
-        res = self._client.create_security_group(
+    def run(self):
+        self.info = self._client.create_security_group(
             Description=self._conf['Description'],
             GroupName=self._conf['GroupName'],
-            VpcId=vpc_id,
+            VpcId=self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId'],
             TagSpecifications=[
                 {
                     'ResourceType': 'security-group',
@@ -181,11 +174,9 @@ class SecurityGroupLauncher():
                         {
                             'Key': 'Name',
                             'Value': self._conf['GroupName']}]}])
-        self.id = res['GroupId']
-        print(f"create {self._conf['GroupName']}")
 
         self._client.authorize_security_group_ingress(
-            GroupId=self.id,
+            GroupId=self.info['GroupId'],
             IpPermissions=[
                 {
                     'FromPort': pconf['FromPort'],
@@ -198,42 +189,48 @@ class SecurityGroupLauncher():
                 }
                 for pconf in self._conf['IpPermissions']
                 ])
+        print(f"create {self._conf['GroupName']}: {self.info['GroupId']}")
 
     def kill(self):
-        if self.id is None:
+        if self.info is None:
             return
 
-        self._client.delete_security_group(
-            GroupId=self.id)
-        print(f"delete {self._conf['GroupName']}")
+        self._client.delete_security_group(GroupId=self.info['GroupId'])
+        print(f"delete {self._conf['GroupName']}: {self.info['GroupId']}")
 
 
 class ElasticComputeCloudLauncher():
-    def __init__(self, conf: dict):
+    def __init__(
+            self,
+            ec2_client,
+            ec2_resource,
+            conf,
+            key_by_name,
+            subnet_by_name,
+            sg_by_name):
+        self._client = ec2_client
+        self._resource = ec2_resource
         self._conf = conf
-
-        self._client = boto3.resource('ec2')
-        self.id = None
-        self.ip = None
-
+        self._key_by_name = key_by_name
+        self._subnet_by_name = subnet_by_name
+        self._sg_by_name = sg_by_name
         self._instance = None
+        self.info = None
 
-    def run(self, key_name, subnet_id, sg_id):
-        self._instance = self._client.create_instances(
+    def run(self):
+        self.instance = self._resource.create_instances(
             ImageId=self._conf['ImageId'],
             MinCount=self._conf['MinCount'],
             MaxCount=self._conf['MaxCount'],
             InstanceType=self._conf['InstanceType'],
-            KeyName=key_name,
-#           SecurityGroupIds=[sg_id],
-#           SubnetId=subnet_id,
+            KeyName=self._conf['KeyName'],
             NetworkInterfaces=[
                 {
                     'AssociatePublicIpAddress': net_conf['AssociatePublicIpAddress'],
                     'DeleteOnTermination': net_conf['DeleteOnTermination'],
                     'DeviceIndex': net_conf['DeviceIndex'],
-                    'Groups': [sg_id],
-                    'SubnetId': subnet_id,
+                    'Groups': [self._sg_by_name[self._conf['Groups']].info['GroupId']],
+                    'SubnetId': self._subnet_by_name[self._conf['SubnetId']].info['Subnet']['SubnetId'],
                 }
                 for net_conf in self._conf['NetworkInterfaces']],
             TagSpecifications=[
@@ -244,20 +241,18 @@ class ElasticComputeCloudLauncher():
                             'Key': 'Name',
                             'Value': self._conf['Name']}]}])[0]
 
-        self.id = self._instance.instance_id
-        print(f'wait for ec2 running: {self.id}')
-        self._instance.wait_until_running()
-        self.ip = self._client.Instance(self.id).public_ip_address
-        print(f"create {self._conf['Name']} ip: {self.ip}")
+        print(f'wait for ec2 running: {self.instance.instance_id}')
+        self.instance.wait_until_running()
+        self.info = self._resource.Instance(self.instance.instance_id)
+        print(f"create {self._conf['Name']} ip: {self.info.public_ip_address}")
 
     def kill(self):
-        if self.id is None and self.ip is None and self._instance is None:
+        if self.instance is None and self.info is None:
             return
 
-        c = boto3.client('ec2')
-        c.terminate_instances(InstanceIds=[self.id])
-        print(f"wait for ec2 terminated: {self.id}")
-        while self._instance.state['Name'] != 'terminated':
+        self._client.terminate_instances(InstanceIds=[self.instance.instance_id])
+        print(f"wait for ec2 terminated: {self.instance.instance_id}")
+        while self.instance.state['Name'] != 'terminated':
             time.sleep(1.0)
-            self._instance.load()
-        print(f"delete {self._conf['Name']} ip: {self.ip}")
+            self.instance.load()
+        print(f"delete {self._conf['Name']} ip: {self.info.public_ip_address}")

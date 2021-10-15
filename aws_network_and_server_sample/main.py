@@ -3,13 +3,14 @@
 import click
 import yaml
 
+import boto3
+
 from generator import (
     KeyGenerator,
 )
 from launcher import (
     ElasticComputeCloudLauncher,
     InternetGateWayLauncher,
-    RouteLauncher,
     RouteTableLauncher,
     SecurityGroupLauncher,
     SubnetLauncher,
@@ -23,49 +24,57 @@ def main(config_file):
     f = open(config_file)
     config = yaml.safe_load(f)
 
+    ec2_client = boto3.client('ec2')
+    ec2_resource = boto3.resource('ec2')
 
-    vpc_array = [VpcLauncher(c) for c in config['vpc']]
-    subnet_array = [SubnetLauncher(c) for c in config['subnet']]
-    igw_array = [InternetGateWayLauncher(c) for c in config['internet_gateway']]
-    rt_array = [RouteTableLauncher(c) for c in config['route_table']]
-    route_array = [RouteLauncher(c) for c in config['route']]
-    sg_array = [SecurityGroupLauncher(c) for c in config['security_group']]
-    key_gen_array = [KeyGenerator(c) for c in config['key']]
-    ec2_array = [ElasticComputeCloudLauncher(c) for c in config['elastic_compute_cloud']]
-
-    try:
-        # TODO(fugashy) この辺のデータ受け渡し方法は微妙だが，
-        # - AWSの仕様を完全に把握していないので下手に抽象化などは避けた
-        # - 本の内容を掴むには十分
-        # なのでしばらくこのまま
-        [vpc.run() for vpc in vpc_array]
-        vpc_id = vpc_array[0].id
-        [subnet.run(vpc_id) for subnet in subnet_array]
-        # publicな方はルートテーブルを設定するのでID確保
-        public_subnet_id = subnet_array[0].id
-        [igw.run(vpc_id) for igw in igw_array]
-        # IGWのIDはルートテーブル設定に必要なので確保
-        igw_id = igw_array[0].id
-        [rt.run(vpc_id, attach_subnet_id=public_subnet_id) for rt in rt_array]
-        rt_id = rt_array[0].id
-        [route.run(rt_id, attach_igw_id=igw_id) for route in route_array]
-        [sg.run(vpc_id) for sg in sg_array]
-        web_server_sg_id = sg_array[0].id
-        key_path_array = [key_gen.gen() for key_gen in key_gen_array]
-        ec2_array[0].run(config['key'][0]['key_name'], public_subnet_id, web_server_sg_id)
-    except Exception as e:
-        print(f'Error: {e}')
+    # TODO(fugashy) この辺のデータ受け渡し方法は微妙だが，
+    # - AWSの仕様を完全に把握していないので下手に抽象化などは避けた
+    # - 本の内容を掴むには十分
+    # なのでしばらくこのまま
+    # VPC
+    vpc_by_name = {
+        c['Name']: VpcLauncher(ec2_client, c)
+        for c in config['vpc']}
+    [vpc_by_name[name].run() for name in vpc_by_name.keys()]
+    # Subnet
+    subnet_by_name = {
+        c['Name']: SubnetLauncher(ec2_client, c, vpc_by_name)
+        for c in config['subnet']}
+    [subnet_by_name[name].run() for name in subnet_by_name.keys()]
+    # Internet Gateway
+    igw_by_name = {
+        c['Name']: InternetGateWayLauncher(ec2_client, c, vpc_by_name)
+        for c in config['internet_gateway']}
+    [igw_by_name[name].run() for name in igw_by_name.keys()]
+    # Route Table
+    rt_by_name = {
+        c['Name']: RouteTableLauncher(ec2_client, c, vpc_by_name, subnet_by_name, igw_by_name)
+        for c in config['route_table']}
+    [rt_by_name[name].run() for name in rt_by_name.keys()]
+    # Security Group
+    sg_by_name = {
+        c['GroupName']: SecurityGroupLauncher(ec2_client, c, vpc_by_name)
+        for c in config['security_group']}
+    [sg_by_name[name].run() for name in sg_by_name.keys()]
+    # Key Pair
+    key_by_name = {c['name']: KeyGenerator(ec2_client, c) for c in config['key']}
+    key_path_array = [key_by_name[name].gen() for name in key_by_name.keys()]
+    # Elastic Compute Cloud
+    ec2_by_name = {
+        c['Name']: ElasticComputeCloudLauncher(
+            ec2_client, ec2_resource, c, key_by_name, subnet_by_name, sg_by_name)
+        for c in config['elastic_compute_cloud']}
+    [ec2_by_name[name].run() for name in ec2_by_name.keys()]
 
     input('Enter to terminate instances')
 
-    [ec2.kill() for ec2 in reversed(ec2_array)]
-    [key_gen.delete() for key_gen in reversed(key_gen_array)]
-    [sg.kill() for sg in reversed(sg_array)]
-    [route.kill() for route in reversed(route_array)]
-    [rt.kill() for rt in reversed(rt_array)]
-    [igw.kill() for igw in reversed(igw_array)]
-    [subnet.kill() for subnet in reversed(subnet_array)]
-    [vpc.kill() for vpc in reversed(vpc_array)]
+    [ec2_by_name[name].kill() for name in reversed(sorted(ec2_by_name.keys()))]
+    [key_by_name[name].delete() for name in reversed(sorted(key_by_name.keys()))]
+    [sg_by_name[name].kill() for name in reversed(sorted(sg_by_name.keys()))]
+    [rt_by_name[name].kill() for name in reversed(sorted(rt_by_name.keys()))]
+    [igw_by_name[name].kill() for name in reversed(sorted(igw_by_name.keys()))]
+    [subnet_by_name[name].kill() for name in reversed(sorted(subnet_by_name.keys()))]
+    [vpc_by_name[name].kill() for name in reversed(sorted(vpc_by_name.keys()))]
 
 
 if __name__ == '__main__':
