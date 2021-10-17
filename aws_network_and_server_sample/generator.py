@@ -17,13 +17,12 @@ class KeyGenerator():
             self.info = self._client.create_key_pair(
                 KeyName=self._conf['name'])
         except Exception as e:
-            print(e)
             info = self._client.describe_key_pairs(
                 KeyNames=[self._conf['name']])
-            self.info = dict()
-            self.info['KeyName'] = info['KeyPairs'][0]['KeyName']
-            self.info['KeyPairId'] = info['KeyPairs'][0]['KeyPairId']
-            return
+            self._client.delete_key_pair(
+                KeyName=info['KeyPairs'][0]['KeyName'],
+                KeyPairId=info['KeyPairs'][0]['KeyPairId'])
+            raise RuntimeError('Duplecated key error: try again')
 
         meta_data = self.info['KeyMaterial']
         key_file_name = f"{self._conf['name']}.pem"
