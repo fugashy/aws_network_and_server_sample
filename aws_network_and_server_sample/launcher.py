@@ -214,7 +214,7 @@ class ElasticComputeCloudLauncher():
         self._key_by_name = key_by_name
         self._subnet_by_name = subnet_by_name
         self._sg_by_name = sg_by_name
-        self._instance = None
+        self.instance = None
         self.info = None
 
     def run(self):
