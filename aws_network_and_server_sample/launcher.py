@@ -224,6 +224,8 @@ class ElasticComputeCloudLauncher():
             MaxCount=self._conf['MaxCount'],
             InstanceType=self._conf['InstanceType'],
             KeyName=self._conf['KeyName'],
+            IamInstanceProfile=self._conf['IamInstanceProfile'],
+            UserData=self._conf['UserData'],
             NetworkInterfaces=[
                 {
                     'AssociatePublicIpAddress': net_conf['AssociatePublicIpAddress'],
@@ -256,3 +258,28 @@ class ElasticComputeCloudLauncher():
             time.sleep(1.0)
             self.instance.load()
         print(f"delete {self._conf['Name']} ip: {self.info.public_ip_address}")
+
+
+class ElasticContainerServiceLauncher:
+    def __init__(self, ecs_client, config):
+        self._client = ecs_client
+        self._conf = config
+        self.info = None
+
+    def run(self):
+        self.info = self._client.create_cluster(
+            clusterName=self._conf['create_cluster']['clusterName'],
+            tags=[{
+                'key': 'Name',
+                'value': self._conf['create_cluster']['clusterName']}])
+        print(f"create {self._conf['create_cluster']['clusterName']}")
+
+
+    def kill(self):
+        if self.info is None:
+            return
+
+        self._client.delete_cluster(
+            cluster=self.info['cluster']['clusterName']
+            )
+        print(f"delete {self._conf['create_cluster']['clusterName']}")

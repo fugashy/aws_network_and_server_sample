@@ -91,3 +91,23 @@ elastic_compute_cloud:
       - AssociatePublicIpAddress: true
         DeleteOnTermination: true
         DeviceIndex: 0
+    # To be ECS component
+    # Need AmazonEC2ContainerServiceforEC2Role for user, and creating ecsInstanceRole for EC2
+    IamInstanceProfile:
+      Name: 'ecsInstanceRole'
+    UserData: '#!/bin/bash \n echo ECS_CLUSTER=" + sample_cluster + " >> /etc/ecs/ecs.config'
+
+elastic_container_service:
+  create_cluster:
+    clusterName: 'sample_cluster'
+  task:
+    - containerDefinitions:
+      - name: 'wordpress'
+        links:
+        image: 'wordpress'
+        essential: true
+        portMappings:
+          - containerPort: 80
+            hostPort: 80
+        memory: 300
+        cpu: 10
