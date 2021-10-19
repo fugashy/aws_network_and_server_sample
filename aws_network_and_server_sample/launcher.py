@@ -226,8 +226,8 @@ class ElasticComputeCloudLauncher():
             KeyName=self._conf['KeyName'],
             IamInstanceProfile=self._conf['IamInstanceProfile'],
             UserData=f'''
-            #!/bin/bash
-            {self._conf['UserData']}
+#!/bin/bash
+{self._conf['UserData']}
             ''',
             NetworkInterfaces=[
                 {
