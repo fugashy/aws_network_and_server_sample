@@ -160,23 +160,15 @@ class SecurityGroupLauncher():
         self._client = client
         self._conf = conf
         self._vpc_by_name = vpc_by_name
-        self.info = None
+        self.info = dict()
 
     def run(self):
-        self.info = self._client.create_security_group(
-            Description=self._conf['Description'],
-            GroupName=self._conf['GroupName'],
-            VpcId=self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId'],
-            TagSpecifications=[
-                {
-                    'ResourceType': 'security-group',
-                    'Tags': [
-                        {
-                            'Key': 'Name',
-                            'Value': self._conf['GroupName']}]}])
+        self._conf['creation']['VpcId'] = self._vpc_by_name[self._conf['vpc_name']].info['Vpc']['VpcId']
+        self.info['creation'] = self._client.create_security_group(**self._conf['creation'])
 
-        self._client.authorize_security_group_ingress(
-            GroupId=self.info['GroupId'],
+        ing_conf = self._conf['ingress']
+        self.info['ingress'] = self._client.authorize_security_group_ingress(
+            GroupId=self.info['creation']['GroupId'],
             IpPermissions=[
                 {
                     'FromPort': pconf['FromPort'],
@@ -187,16 +179,33 @@ class SecurityGroupLauncher():
                     if 'CidrIpv6' in pconf else [],
                     'ToPort': pconf['ToPort']
                 }
-                for pconf in self._conf['IpPermissions']
+                for pconf in ing_conf['IpPermissions']
                 ])
-        print(f"create {self._conf['GroupName']}: {self.info['GroupId']}")
+
+        if 'egress' in self._conf:
+            eg_conf = self._conf['egress']
+            self.info['egress'] = self._client.authorize_security_group_egress(
+                GroupId=self.info['creation']['GroupId'],
+                IpPermissions=[
+                    {
+                        'FromPort': pconf['FromPort'],
+                        'IpProtocol': pconf['IpProtocol'],
+                        'IpRanges': [{'CidrIp': pconf['CidrIp']}],
+                        'Ipv6Ranges': [{
+                            'CidrIpv6': pconf['CidrIpv6']}]
+                        if 'CidrIpv6' in pconf else [],
+                        'ToPort': pconf['ToPort']
+                    }
+                    for pconf in eg_conf['IpPermissions']
+                    ])
+        print(f"create {self._conf['creation']['GroupName']}: {self.info['creation']['GroupId']}")
 
     def kill(self):
-        if self.info is None:
+        if len(self.info) <= 1:
             return
 
-        self._client.delete_security_group(GroupId=self.info['GroupId'])
-        print(f"delete {self._conf['GroupName']}: {self.info['GroupId']}")
+        self._client.delete_security_group(GroupId=self.info['creation']['GroupId'])
+        print(f"delete {self._conf['creation']['GroupName']}: {self.info['creation']['GroupId']}")
 
 
 class ElasticComputeCloudLauncher():
@@ -234,7 +243,7 @@ class ElasticComputeCloudLauncher():
                     'AssociatePublicIpAddress': net_conf['AssociatePublicIpAddress'],
                     'DeleteOnTermination': net_conf['DeleteOnTermination'],
                     'DeviceIndex': net_conf['DeviceIndex'],
-                    'Groups': [self._sg_by_name[self._conf['Groups']].info['GroupId']],
+                    'Groups': [self._sg_by_name[self._conf['Groups']].info['creation']['GroupId']],
                     'SubnetId': self._subnet_by_name[self._conf['SubnetId']].info['Subnet']['SubnetId'],
                 }
                 for net_conf in self._conf['NetworkInterfaces']],

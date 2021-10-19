@@ -27,51 +27,67 @@ route_table:
         DestinationCidrBlock: '0.0.0.0/0'
 
 security_group:
-  - GroupName: 'web_server_sg'
-    Description: 'A security group for public VPC'
-    IpPermissions:
-      # for ssh
-      - IpProtocol: 'tcp'
-        FromPort: 22
-        ToPort: 22
-        CidrIp: '0.0.0.0/0'
-      # for web server
-      - type: 'http'
-        IpProtocol: 'tcp'
-        FromPort: 80
-        ToPort: 80
-        CidrIp: '0.0.0.0/0'
-      - type: 'costomized tcp'
-        IpProtocol: 'tcp'
-        FromPort: 8080
-        ToPort: 8080
-        CidrIp: '0.0.0.0/0'
-      # for ping
-      - IpProtocol: 'icmp'
-        FromPort: -1
-        ToPort: -1
-        CidrIp: '0.0.0.0/0'
-        CidrIpv6: '::/0'
+  - creation:
+      GroupName: 'web_server_sg'
+      Description: 'A security group for public VPC'
+      TagSpecifications:
+        - ResourceType: 'security-group'
+          Tags:
+            - Key: 'Name'
+              Value: 'web_server_sg'
+    ingress:
+      IpPermissions:
+        # for ssh
+        - IpProtocol: 'tcp'
+          FromPort: 22
+          ToPort: 22
+          CidrIp: '0.0.0.0/0'
+        # for web server
+        - type: 'http'
+          IpProtocol: 'tcp'
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - type: 'costomized tcp'
+          IpProtocol: 'tcp'
+          FromPort: 8080
+          ToPort: 8080
+          CidrIp: '0.0.0.0/0'
+        # for ping
+        - IpProtocol: 'icmp'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+          CidrIpv6: '::/0'
+    egress:
+      IpPermissions:
+        # for https
+        - IpProtocol: 'tcp'
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
     vpc_name: 'vpc_region'
-  - GroupName: 'db_sg'
-    Description: 'A security group for private VPC'
-    IpPermissions:
-      - IpProtocol: 'tcp'
-        FromPort: 22
-        ToPort: 22
-        CidrIp: '0.0.0.0/0'
-      # for DB
-      - IpProtocol: 'tcp'
-        FromPort: 3306
-        ToPort: 3306
-        CidrIp: '0.0.0.0/0'
-        CidrIpv6: '::/0'
-      # for ping
-      - IpProtocol: 'icmp'
-        FromPort: -1
-        ToPort: -1
-        CidrIp: '0.0.0.0/0'
-        CidrIpv6: '::/0'
+  - creation:
+      GroupName: 'db_sg'
+      Description: 'A security group for private VPC'
+    ingress:
+      IpPermissions:
+        - IpProtocol: 'tcp'
+          FromPort: 22
+          ToPort: 22
+          CidrIp: '0.0.0.0/0'
+        # for DB
+        - IpProtocol: 'tcp'
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: '0.0.0.0/0'
+          CidrIpv6: '::/0'
+        # for ping
+        - IpProtocol: 'icmp'
+          FromPort: -1
+          ToPort: -1
+          CidrIp: '0.0.0.0/0'
+          CidrIpv6: '::/0'
     vpc_name: 'vpc_region'
 
 key:
@@ -100,10 +116,10 @@ elastic_compute_cloud:
       Name: 'ecsInstanceRole'
     # TODO(fugashy) #!/bin/bashをyamlからいい感じに送る方法がわからなかった
     # なので，#!/bin/bashはコードに埋め込み
-    UserData: |
-      'echo ECS_CLUSTER="sample_cluster" >> /etc/ecs/ecs.config'
-      'echo ECS_ENGINE_AUTH_TYPE="docker" >> /etc/ecs/ecs.config'
-      'echo ECS_ENGINE_AUTH_DATA="{"https://index.docker.io/v1/":{"username":"my_name","password":"my_password","email":"email@example.com"}}" >> /etc/ecs/ecs.config'
+    UserData: >
+      echo ECS_CLUSTER="sample_cluster" >> /etc/ecs/ecs.config &&
+      echo ECS_ENGINE_AUTH_TYPE="docker" >> /etc/ecs/ecs.config &&
+      echo ECS_ENGINE_AUTH_DATA="{"https://index.docker.io/v1/":{"username":"hoge","password":"hoge","email":"hoge"}}" >> /etc/ecs/ecs.config
 
 elastic_container_service:
   create_cluster:
@@ -113,7 +129,7 @@ elastic_container_service:
     networkMode: 'bridge'
     containerDefinitions:
       - name: 'web_server'
-        image: 'fugashy/aws_web_server_sample'
+        image: 'fugashy/aws_web_server_sample:20211018'
         cpu: 1
         memory: 300
         portMappings:

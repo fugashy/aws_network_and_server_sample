@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import click
+import traceback
 import yaml
 
 import boto3
@@ -57,7 +58,7 @@ def main(config_file):
         [rt_by_name[name].run() for name in rt_by_name.keys()]
         # Security Group
         sg_by_name = {
-            c['GroupName']: SecurityGroupLauncher(ec2_client, c, vpc_by_name)
+            c['creation']['GroupName']: SecurityGroupLauncher(ec2_client, c, vpc_by_name)
             for c in config['security_group']}
         [sg_by_name[name].run() for name in sg_by_name.keys()]
         # Elastic Container Service
@@ -73,8 +74,8 @@ def main(config_file):
         ecs_launcher.run()
 
         input('Enter to terminate instances')
-    except Exception as e:
-        print(e)
+    except:
+        traceback.print_exc()
 
     [ec2_by_name[name].kill() for name in reversed(sorted(ec2_by_name.keys()))]
     try:
