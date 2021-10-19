@@ -264,22 +264,28 @@ class ElasticContainerServiceLauncher:
     def __init__(self, ecs_client, config):
         self._client = ecs_client
         self._conf = config
-        self.info = None
+        self.info = dict()
 
     def run(self):
-        self.info = self._client.create_cluster(
+        self.info['cluster'] = self._client.create_cluster(
             clusterName=self._conf['create_cluster']['clusterName'],
             tags=[{
                 'key': 'Name',
                 'value': self._conf['create_cluster']['clusterName']}])
         print(f"create {self._conf['create_cluster']['clusterName']}")
 
+        self.info['task'] = self._client.register_task_definition(
+            **self._conf['task'])
+        print(f"create {self.info['task']['taskDefinition']['taskDefinitionArn']}")
 
     def kill(self):
-        if self.info is None:
+        if len(self.info) == 0:
             return
 
         self._client.delete_cluster(
-            cluster=self.info['cluster']['clusterName']
-            )
+            cluster=f"{self._conf['create_cluster']['clusterName']}")
         print(f"delete {self._conf['create_cluster']['clusterName']}")
+
+        self._client.deregister_task_definition(
+            taskDefinition=f"{self._conf['task']['family']}:{self.info['task']['taskDefinition']['revision']}")
+        print(f"delete {self.info['task']['taskDefinition']['taskDefinitionArn']}")

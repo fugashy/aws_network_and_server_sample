@@ -79,7 +79,10 @@ key:
     save_dir_path: '/tmp'
 
 elastic_compute_cloud:
-  - ImageId: 'ami-08847abae18baa040'
+  # general
+# - ImageId: 'ami-08847abae18baa040'
+  # ecs optimzied
+  - ImageId: 'ami-064bf9846657106e1'
     MinCount: 1
     MaxCount: 1
     InstanceType: 't2.micro'
@@ -101,13 +104,15 @@ elastic_container_service:
   create_cluster:
     clusterName: 'sample_cluster'
   task:
-    - containerDefinitions:
-      - name: 'wordpress'
-        links:
-        image: 'wordpress'
-        essential: true
+    family: 'network_and_server_sample'
+    networkMode: 'bridge'
+    containerDefinitions:
+      - name: 'web_server'
+        image: 'fugashy/aws_web_server_sample'
+        cpu: 1
+        memory: 300
         portMappings:
           - containerPort: 80
             hostPort: 80
-        memory: 300
-        cpu: 10
+            protocol: 'tcp'
+        essential: true
