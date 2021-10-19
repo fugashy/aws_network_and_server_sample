@@ -2,6 +2,13 @@
 
 Construct Wordpress blog site on little secure VPC
 
+# 実行のためにやったこと（最小限というわけではないかもしれない）
+
+- ecs-cliのインストール
+
+  https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/ECS_CLI_installation.html
+  https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/ECS_CLI_Configuration.html
+
 # reference
 
 - さわって学ぶクラウドインフラ Amazon Web Services 基礎からのネットワーク&サーバー構築
