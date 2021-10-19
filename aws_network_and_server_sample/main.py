@@ -34,12 +34,8 @@ def main(config_file):
     key_by_name = {c['name']: KeyGenerator(ec2_client, c) for c in config['key']}
     key_path_array = [key_by_name[name].gen() for name in key_by_name.keys()]
 
-    # TODO(fugashy) この辺のデータ受け渡し方法は微妙だが，
-    # - AWSの仕様を完全に把握していないので下手に抽象化などは避けた
-    # - 本の内容を掴むには十分
-    # なのでしばらくこのまま
-    # VPC
     try:
+        # VPC
         vpc_by_name = {
             c['Name']: VpcLauncher(ec2_client, c)
             for c in config['vpc']}
@@ -78,7 +74,10 @@ def main(config_file):
     except Exception as e:
         print(e)
 
-    ecs_launcher.kill()
+    try:
+        ecs_launcher.kill()
+    except Exception as e:
+        print(e)
     [ec2_by_name[name].kill() for name in reversed(sorted(ec2_by_name.keys()))]
     [key_by_name[name].delete() for name in reversed(sorted(key_by_name.keys()))]
     [sg_by_name[name].kill() for name in reversed(sorted(sg_by_name.keys()))]

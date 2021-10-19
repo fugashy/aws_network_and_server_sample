@@ -98,7 +98,7 @@ elastic_compute_cloud:
     # Need AmazonEC2ContainerServiceforEC2Role for user, and creating ecsInstanceRole for EC2
     IamInstanceProfile:
       Name: 'ecsInstanceRole'
-    UserData: '#!/bin/bash \n echo ECS_CLUSTER=" + sample_cluster + " >> /etc/ecs/ecs.config'
+    UserData: '#!/bin/bash \n echo ECS_CLUSTER="sample_cluster" >> /etc/ecs/ecs.config'
 
 elastic_container_service:
   create_cluster:
@@ -116,3 +116,13 @@ elastic_container_service:
             hostPort: 80
             protocol: 'tcp'
         essential: true
+  service:
+    cluster: 'sample_cluster'
+    serviceName: 'sample_ecs_service'
+    taskDefinition: 'network_and_server_sample'
+    desiredCount: 1
+    clientToken: 'request_identifier_string'
+    launchType: 'EC2'
+    deploymentConfiguration:
+      maximumPercent: 100
+      minimumHealthyPercent: 50

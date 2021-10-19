@@ -266,7 +266,7 @@ class ElasticContainerServiceLauncher:
         self._conf = config
         self.info = dict()
 
-    def run(self):
+        # clusterだけは先に作っておいたほうがいいような雰囲気してる
         self.info['cluster'] = self._client.create_cluster(
             clusterName=self._conf['create_cluster']['clusterName'],
             tags=[{
@@ -278,14 +278,32 @@ class ElasticContainerServiceLauncher:
             **self._conf['task'])
         print(f"create {self.info['task']['taskDefinition']['taskDefinitionArn']}")
 
+    def run(self):
+        self.info['service'] = self._client.create_service(
+            **self._conf['service'])
+        print(f"create {self._conf['service']['serviceName']}")
+
     def kill(self):
         if len(self.info) == 0:
             return
+        try:
+            self._client.update_service(
+                cluster=self._conf['create_cluster']['clusterName'],
+                service=self._conf['service']['serviceName'],
+                desiredCount=0)
+            self._client.delete_service(
+                cluster=self._conf['create_cluster']['clusterName'],
+                service=self._conf['service']['serviceName'],
+                force=True)
+            print(f"delete {self._conf['service']['serviceName']}")
+        except:
+            print('service not found/not active')
+
+        self._client.deregister_task_definition(
+            taskDefinition=f"{self._conf['task']['family']}:{self.info['task']['taskDefinition']['revision']}")
+        print(f"delete {self.info['task']['taskDefinition']['taskDefinitionArn']}")
 
         self._client.delete_cluster(
             cluster=f"{self._conf['create_cluster']['clusterName']}")
         print(f"delete {self._conf['create_cluster']['clusterName']}")
 
-        self._client.deregister_task_definition(
-            taskDefinition=f"{self._conf['task']['family']}:{self.info['task']['taskDefinition']['revision']}")
-        print(f"delete {self.info['task']['taskDefinition']['taskDefinitionArn']}")
