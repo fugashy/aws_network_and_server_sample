@@ -225,7 +225,10 @@ class ElasticComputeCloudLauncher():
             InstanceType=self._conf['InstanceType'],
             KeyName=self._conf['KeyName'],
             IamInstanceProfile=self._conf['IamInstanceProfile'],
-            UserData=self._conf['UserData'],
+            UserData=f'''
+            #!/bin/bash
+            {self._conf['UserData']}
+            ''',
             NetworkInterfaces=[
                 {
                     'AssociatePublicIpAddress': net_conf['AssociatePublicIpAddress'],

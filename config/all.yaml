@@ -98,7 +98,9 @@ elastic_compute_cloud:
     # Need AmazonEC2ContainerServiceforEC2Role for user, and creating ecsInstanceRole for EC2
     IamInstanceProfile:
       Name: 'ecsInstanceRole'
-    UserData: '#!/bin/bash \n echo ECS_CLUSTER="sample_cluster" >> /etc/ecs/ecs.config'
+    # TODO(fugashy) #!/bin/bashをyamlからいい感じに送る方法がわからなかった
+    # なので，#!/bin/bashはコードに埋め込み
+    UserData: 'echo ECS_CLUSTER="sample_cluster" >> /etc/ecs/ecs.config'
 
 elastic_container_service:
   create_cluster:

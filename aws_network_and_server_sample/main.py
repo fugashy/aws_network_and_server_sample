@@ -60,25 +60,27 @@ def main(config_file):
             c['GroupName']: SecurityGroupLauncher(ec2_client, c, vpc_by_name)
             for c in config['security_group']}
         [sg_by_name[name].run() for name in sg_by_name.keys()]
+        # Elastic Container Service
+        ecs_launcher = ElasticContainerServiceLauncher(ecs_client, config['elastic_container_service'])
+
         # Elastic Compute Cloud
         ec2_by_name = {
             c['Name']: ElasticComputeCloudLauncher(
                 ec2_client, ec2_resource, c, key_by_name, subnet_by_name, sg_by_name)
             for c in config['elastic_compute_cloud']}
         [ec2_by_name[name].run() for name in ec2_by_name.keys()]
-        # Elastic Container Service
-        ecs_launcher = ElasticContainerServiceLauncher(ecs_client, config['elastic_container_service'])
+
         ecs_launcher.run()
 
         input('Enter to terminate instances')
     except Exception as e:
         print(e)
 
+    [ec2_by_name[name].kill() for name in reversed(sorted(ec2_by_name.keys()))]
     try:
         ecs_launcher.kill()
     except Exception as e:
         print(e)
-    [ec2_by_name[name].kill() for name in reversed(sorted(ec2_by_name.keys()))]
     [key_by_name[name].delete() for name in reversed(sorted(key_by_name.keys()))]
     [sg_by_name[name].kill() for name in reversed(sorted(sg_by_name.keys()))]
     [rt_by_name[name].kill() for name in reversed(sorted(rt_by_name.keys()))]
