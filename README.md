@@ -2,6 +2,12 @@
 
 Construct Wordpress blog site on little secure VPC
 
+# how to use
+
+```bash
+python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
+```
+
 # 実行のためにやったこと（最小限というわけではないかもしれない）
 
 - ecs-cliのインストール
