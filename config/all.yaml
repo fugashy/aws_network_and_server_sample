@@ -194,6 +194,12 @@ elastic_container_service:
             - containerPort: 3306
               hostPort: 3306
               protocol: 'tcp'
+          # 余力があればS3を使う
+          environment:
+            - name: MARIADB_ROOT_PASSWORD
+              value: my-secret-pw
+            - name: MARIADB_DATABASE
+              value: wordpress
           essential: true
     service:
       cluster: 'sample_cluster_private'
