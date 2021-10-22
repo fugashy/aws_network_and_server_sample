@@ -54,7 +54,7 @@ Construct Wordpress blog site on little secure VPC
   python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
   ```
 
-- access to public IP of web_server_ec2
+- access to public IP of web_server_ec2 by your browser
 
   See stdout like create web_server_ec2: ip: xx.xxx.xxx.xx
 
