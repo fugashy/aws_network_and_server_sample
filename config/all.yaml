@@ -95,6 +95,7 @@ key:
     save_dir_path: '/tmp'
 
 elastic_compute_cloud:
+  # apache2 server
   # general
 # - ImageId: 'ami-08847abae18baa040'
   # ecs optimzied
@@ -117,33 +118,75 @@ elastic_compute_cloud:
     # TODO(fugashy) #!/bin/bashをyamlからいい感じに送る方法がわからなかった
     # なので，#!/bin/bashはコードに埋め込み
     UserData: >
-      echo ECS_CLUSTER="sample_cluster" >> /etc/ecs/ecs.config &&
-      echo ECS_ENGINE_AUTH_TYPE="docker" >> /etc/ecs/ecs.config &&
-      echo ECS_ENGINE_AUTH_DATA="{"https://index.docker.io/v1/":{"username":"hoge","password":"hoge","email":"hoge"}}" >> /etc/ecs/ecs.config
+      echo ECS_CLUSTER="sample_cluster_public" >> /etc/ecs/ecs.config &&
+      echo ECS_CONTAINER_INSTANCE_PROPAGATE_TAGS_FROM=ec2_instance >> /etc/ecs/ecs.config
+  # MariaDB
+  - ImageId: 'ami-064bf9846657106e1'
+    MinCount: 1
+    MaxCount: 1
+    InstanceType: 't2.micro'
+    Name: 'db_server_ec2'
+    SubnetId: 'private_subnet'
+    Groups: 'db_sg'
+    KeyName: 'web_server_ec2_key'
+    NetworkInterfaces:
+      - AssociatePublicIpAddress: false
+        DeleteOnTermination: true
+        DeviceIndex: 0
+    IamInstanceProfile:
+      Name: 'ecsInstanceRole'
+    UserData: >
+      echo ECS_CLUSTER="sample_cluster_private" >> /etc/ecs/ecs.config &&
+      echo ECS_CONTAINER_INSTANCE_PROPAGATE_TAGS_FROM=ec2_instance >> /etc/ecs/ecs.config
 
 elastic_container_service:
-  create_cluster:
-    clusterName: 'sample_cluster'
-  task:
-    family: 'network_and_server_sample'
-    networkMode: 'bridge'
-    containerDefinitions:
-      - name: 'web_server'
-        image: 'fugashy/aws_web_server_sample:20211018'
-        cpu: 1
-        memory: 300
-        portMappings:
-          - containerPort: 80
-            hostPort: 80
-            protocol: 'tcp'
-        essential: true
-  service:
-    cluster: 'sample_cluster'
-    serviceName: 'sample_ecs_service'
-    taskDefinition: 'network_and_server_sample'
-    desiredCount: 1
-    clientToken: 'request_identifier_string'
-    launchType: 'EC2'
-    deploymentConfiguration:
-      maximumPercent: 100
-      minimumHealthyPercent: 50
+  - create_cluster:
+      clusterName: 'sample_cluster_public'
+    task:
+      family: 'web_server_family'
+      networkMode: 'bridge'
+      containerDefinitions:
+        - name: 'web_server'
+          image: 'fugashy/aws_web_server_sample:20211018'
+          cpu: 1
+          memory: 300
+          portMappings:
+            - containerPort: 80
+              hostPort: 80
+              protocol: 'tcp'
+          essential: true
+    service:
+      cluster: 'sample_cluster_public'
+      serviceName: 'sample_ecs_service_public'
+      taskDefinition: 'web_server_family'
+      desiredCount: 1
+      clientToken: 'request_identifier_string'
+      launchType: 'EC2'
+      deploymentConfiguration:
+        maximumPercent: 100
+        minimumHealthyPercent: 50
+  - create_cluster:
+      clusterName: 'sample_cluster_private'
+    task:
+      family: 'db_family'
+      networkMode: 'bridge'
+      containerDefinitions:
+        - name: 'db_server'
+          image: 'mariadb'
+          cpu: 1
+          memory: 300
+          portMappings:
+            - containerPort: 3306
+              hostPort: 3306
+              protocol: 'tcp'
+          essential: true
+    service:
+      cluster: 'sample_cluster_private'
+      serviceName: 'sample_ecs_service_private'
+      taskDefinition: 'db_family'
+      desiredCount: 1
+      clientToken: 'request_identifier_string'
+      launchType: 'EC2'
+      deploymentConfiguration:
+        maximumPercent: 100
+        minimumHealthyPercent: 50

@@ -10,14 +10,12 @@ python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
 
 # 実行のためにやったこと（最小限というわけではないかもしれない）
 
-- ecsInstanceRoleの作成
-
-  https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/instance_IAM_role.html
-
 - ecs-cliのインストール
 
   https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/ECS_CLI_installation.html
   https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/ECS_CLI_Configuration.html
+
+- eclInstanceRoleの作成
 
 # reference
 

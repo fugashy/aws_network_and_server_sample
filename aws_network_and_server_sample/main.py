@@ -62,7 +62,9 @@ def main(config_file):
             for c in config['security_group']}
         [sg_by_name[name].run() for name in sg_by_name.keys()]
         # Elastic Container Service
-        ecs_launcher = ElasticContainerServiceLauncher(ecs_client, config['elastic_container_service'])
+        ecs_by_name = {
+            c['create_cluster']['clusterName']: ElasticContainerServiceLauncher(ecs_client, c)
+            for c in config['elastic_container_service']}
 
         # Elastic Compute Cloud
         ec2_by_name = {
@@ -71,7 +73,7 @@ def main(config_file):
             for c in config['elastic_compute_cloud']}
         [ec2_by_name[name].run() for name in ec2_by_name.keys()]
 
-        ecs_launcher.run()
+        [ecs_by_name[name].run() for name in ecs_by_name.keys()]
 
         input('Enter to terminate instances')
     except:
@@ -79,7 +81,7 @@ def main(config_file):
 
     [ec2_by_name[name].kill() for name in reversed(sorted(ec2_by_name.keys()))]
     try:
-        ecs_launcher.kill()
+        [ecs_by_name[name].kill() for name in reversed(sorted(ecs_by_name.keys()))]
     except Exception as e:
         print(e)
     [key_by_name[name].delete() for name in reversed(sorted(key_by_name.keys()))]

@@ -246,7 +246,7 @@ class ElasticComputeCloudLauncher():
                     'Groups': [self._sg_by_name[self._conf['Groups']].info['creation']['GroupId']],
                     'SubnetId': self._subnet_by_name[self._conf['SubnetId']].info['Subnet']['SubnetId'],
                 }
-                for net_conf in self._conf['NetworkInterfaces']],
+                for net_conf in self._conf['NetworkInterfaces']] if 'NetworkInterfaces' in self._conf else list(),
             TagSpecifications=[
                 {
                     'ResourceType': 'instance',
