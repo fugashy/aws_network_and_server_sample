@@ -58,6 +58,8 @@ Construct Wordpress blog site on little secure VPC
 
   See stdout like create web_server_ec2: ip: xx.xxx.xxx.xx
 
+- press enter to kill
+
 # reference
 
 - さわって学ぶクラウドインフラ Amazon Web Services 基礎からのネットワーク&サーバー構築

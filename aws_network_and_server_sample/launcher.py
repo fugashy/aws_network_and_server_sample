@@ -367,6 +367,7 @@ class NatGatewayLauncher():
         self.info = self._client.create_nat_gateway(
             AllocationId=self._eip_by_name[self._conf['eip_name']].info['AllocationId'],
             SubnetId=self._subnet_by_name[self._conf['subnet_name']].info['Subnet']['SubnetId'])
+        print('wait until NAT gateway running...')
         self._client.get_waiter('nat_gateway_available').wait(
             NatGatewayIds=[self.info['NatGateway']['NatGatewayId']])
         print(f"create {self._conf['Name']}: {self.info['NatGateway']['NatGatewayId']}")
@@ -377,6 +378,7 @@ class NatGatewayLauncher():
 
         self._client.delete_nat_gateway(NatGatewayId=self.info['NatGateway']['NatGatewayId'])
         waiter = self._client.get_waiter('nat_gateway_available')
+        print('wait until NAT gateway termination...')
         waiter.wait(Filters=[
             {
                 'Name': 'state',
