@@ -6,7 +6,7 @@ Construct Wordpress blog site on little secure VPC
 
 - press enter to kill all of them
 
-# 構成
+# components after launch finished
 
   - VPC
 
@@ -30,22 +30,33 @@ Construct Wordpress blog site on little secure VPC
 
       - PrivateRootTable
 
+# dependency
+
+- python 3.7.4
+
+- boto3 1.18.21
+
+# required fee for AWS
+
+- NAT and EIP(Creation and running)
+
+  NAT is used for pulling docker image.
+
+# required IAM roll for instance
+
+- eclInstanceRole
+
 # how to use
 
-```bash
-python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
-```
+- launch
 
-# 実行のためにやったこと（最小限というわけではないかもしれない）
+  ```bash
+  python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
+  ```
 
-- ecs-cliのインストール
+- access to public IP of web_server_ec2
 
-  https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/ECS_CLI_installation.html
-  https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/ECS_CLI_Configuration.html
-
-- eclInstanceRoleの作成
-
-- IAMの設定
+  See stdout like create web_server_ec2: ip: xx.xxx.xxx.xx
 
 # reference
 
@@ -53,24 +64,28 @@ python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
 
   日経BP
 
-# web server
+  https://www.amazon.co.jp/Amazon-Web-Services-基礎からのネットワーク＆サーバー構築-改訂3版-大澤-ebook/dp/B084QQ7TCF
 
-- dockerhubのPublic reposにあります
+# docker images for ECS
 
-  ```bash
-  docker pull fugashy/aws_web_server_sample:latest
+- web server
 
-  # 試運転
-  docker run --rm -it --name web_server -p 80:80 aws_web_server_sample
-  ```
+  - In public repos of dockerhub
 
-# db server
+    ```bash
+    docker pull fugashy/aws_web_server_sample:latest
 
-- mariadbの公式イメージを用います
+    # try
+    docker run --rm -it --name web_server -p 80:80 aws_web_server_sample
+    ```
 
-  ```bash
-  docker pull mariadb
+- db server
 
-  # 試運転
-  docker run -p 127.0.0.1:3306:3306 -e MARIADB_ROOT_PASSWORD=my-secret-pw -e MARIADB_DATABASE=wordpress --name db_server -it --rm mariadb
-  ```
+  - use official mariadb
+
+    ```bash
+    docker pull mariadb
+
+    # try
+    docker run -p 127.0.0.1:3306:3306 -e MARIADB_ROOT_PASSWORD=my-secret-pw -e MARIADB_DATABASE=wordpress --name db_server -it --rm mariadb
+    ```
