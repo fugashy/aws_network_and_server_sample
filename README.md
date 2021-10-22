@@ -2,6 +2,34 @@
 
 Construct Wordpress blog site on little secure VPC
 
+- Launch all
+
+- press enter to kill all of them
+
+# 構成
+
+  - VPC
+
+    - Internet gateway
+
+    - PublicSubnet
+
+      - web_server container (ECS on EC2)
+
+        Wordpress works
+
+      - NAT Gateway with Elastic IP
+
+      - PublicRootTable
+
+    - PrivateSubnet
+
+      - db_server container (ECS on EC2)
+
+        MariaDB works
+
+      - PrivateRootTable
+
 # how to use
 
 ```bash
@@ -17,6 +45,8 @@ python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
 
 - eclInstanceRoleの作成
 
+- IAMの設定
+
 # reference
 
 - さわって学ぶクラウドインフラ Amazon Web Services 基礎からのネットワーク&サーバー構築
@@ -25,7 +55,7 @@ python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
 
 # web server
 
-- dockerhubにあります
+- dockerhubのPublic reposにあります
 
   ```bash
   docker pull fugashy/aws_web_server_sample:latest
