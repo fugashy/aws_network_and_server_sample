@@ -97,6 +97,30 @@ class InternetGateWayLauncher():
         print(f"delete {self._conf['Name']}: {self.info['InternetGateway']['InternetGatewayId']}")
 
 
+class ElasticIpLauncher():
+    def __init__(self, client, config):
+        self._client = client
+        self._conf = config
+        self.info = None
+
+    def run(self):
+        self.info = self._client.allocate_address(Domain=self._conf['Domain'])
+        print(f"create {self._conf['Name']}: {self.info['AllocationId']}")
+
+    def kill(self):
+        if self.info is None:
+            return
+
+        # NetworkInterfaceの情報を得て，アタッチされてないEIPをKill
+        desc = self._client.describe_addresses(
+            Filters=[{'Name': 'domain', 'Values': ['vpc']}])
+        for rec in desc['Addresses']:
+            if 'NetworkInterfaceId' not in rec:
+                self._client.release_address(AllocationId=rec['AllocationId'])
+        print(f"delete {self._conf['Name']}: {self.info['AllocationId']}")
+        self.info = None
+
+
 class RouteTableLauncher():
     def __init__(
             self,
@@ -104,12 +128,14 @@ class RouteTableLauncher():
             conf: dict,
             vpc_by_name: dict,
             subnet_by_name=None,
-            igw_by_name=None):
+            igw_by_name=None,
+            nat_by_name=None):
         self._client = client
         self._conf = conf
         self._vpc_by_name = vpc_by_name
         self._subnet_by_name = subnet_by_name
         self._igw_by_name = igw_by_name
+        self._nat_by_name = nat_by_name
         self.info = None
         self._association_info = None
         self._route_info = list()
@@ -133,9 +159,18 @@ class RouteTableLauncher():
         print(f"create {self._conf['Name']}: {self.info['RouteTable']['RouteTableId']}")
 
         for c in self._conf['routes']:
+            # IGW, NATのうち，当てはまってるものがあればアタッチ
+            # 微妙な実装になってしまった
+            # 今後は素直にCloudFormationを使う
+            if c['gw_name'] in self._igw_by_name:
+                gateway_id = self._igw_by_name[c['gw_name']].info['InternetGateway']['InternetGatewayId']
+            elif c['gw_name'] in self._nat_by_name:
+                gateway_id = self._nat_by_name[c['gw_name']].info['NatGateway']['NatGatewayId']
+            else:
+                return
             self._route_info.append(self._client.create_route(
                 DestinationCidrBlock=c['DestinationCidrBlock'],
-                GatewayId=self._igw_by_name[c['GatewayId']].info['InternetGateway']['InternetGatewayId'],
+                GatewayId=gateway_id,
                 RouteTableId=self.info['RouteTable']['RouteTableId']))
 
     def kill(self):
@@ -319,3 +354,35 @@ class ElasticContainerServiceLauncher:
             cluster=f"{self._conf['create_cluster']['clusterName']}")
         print(f"delete {self._conf['create_cluster']['clusterName']}")
 
+
+class NatGatewayLauncher():
+    def __init__(self, client, config, subnet_by_name, eip_by_name):
+        self._client = client
+        self._conf = config
+        self._subnet_by_name = subnet_by_name
+        self._eip_by_name = eip_by_name
+        self.info = None
+
+    def run(self):
+        self.info = self._client.create_nat_gateway(
+            AllocationId=self._eip_by_name[self._conf['eip_name']].info['AllocationId'],
+            SubnetId=self._subnet_by_name[self._conf['subnet_name']].info['Subnet']['SubnetId'])
+        self._client.get_waiter('nat_gateway_available').wait(
+            NatGatewayIds=[self.info['NatGateway']['NatGatewayId']])
+        print(f"create {self._conf['Name']}: {self.info['NatGateway']['NatGatewayId']}")
+
+    def kill(self):
+        if self.info is None:
+            return
+
+        self._client.delete_nat_gateway(NatGatewayId=self.info['NatGateway']['NatGatewayId'])
+        waiter = self._client.get_waiter('nat_gateway_available')
+        waiter.wait(Filters=[
+            {
+                'Name': 'state',
+                'Values': ['deleted']
+            },{
+                'Name': 'nat-gateway-id',
+                'Values': [self.info['NatGateway']['NatGatewayId']]}])
+
+        print(f"delete {self._conf['Name']}: {self.info['NatGateway']['NatGatewayId']}")

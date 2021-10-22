@@ -18,12 +18,27 @@ internet_gateway:
   - Name: 'gateway'
     vpc_name: 'vpc_region'
 
+elastic_ip:
+  - Name: 'eip'
+    Domain: 'vpc'
+
+nat_gateway:
+  - Name: 'nat_gateway'
+    subnet_name: 'public_subnet'
+    eip_name: 'eip'
+
 route_table:
   - Name: 'public_rt'
     vpc_name: 'vpc_region'
     subnet_name: 'public_subnet'
     routes:
-      - GatewayId: 'gateway'
+      - gw_name: 'gateway'
+        DestinationCidrBlock: '0.0.0.0/0'
+  - Name: 'private_rt'
+    vpc_name: 'vpc_region'
+    subnet_name: 'private_subnet'
+    routes:
+      - gw_name: 'nat_gateway'
         DestinationCidrBlock: '0.0.0.0/0'
 
 security_group:
