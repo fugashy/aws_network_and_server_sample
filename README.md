@@ -48,10 +48,12 @@ Construct Wordpress blog site on little secure VPC
 
 # how to use
 
+## boto3 ver
+
 - launch
 
   ```bash
-  python aws_network_and_server_sample/main.py `pwd`/config/all.yaml
+  python aws_network_and_server_sample/_boto3/main.py `pwd`/config/all.yaml
   ```
 
 - access to public IP of web_server_ec2 by your browser
